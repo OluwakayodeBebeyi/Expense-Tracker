@@ -8,7 +8,7 @@ async function main() {
     update: {},
     create: {
       name: 'Administrator',
-      permissions: ['manageUsers', 'manageSettings', 'manageTransactions', 'generateReports'],
+      permissions: JSON.stringify(['manageUsers', 'manageSettings', 'manageTransactions', 'generateReports']),
     },
   });
 

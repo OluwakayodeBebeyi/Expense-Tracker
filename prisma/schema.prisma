@@ -10,7 +10,7 @@ datasource db {
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique
-  permissions Json
+  permissions String
   users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -145,8 +145,8 @@ model AuditLog {
   action       String
   entity       String?
   entityId     String?
-  previousValue Json?
-  newValue     Json?
+  previousValue String?
+  newValue     String?
   ipAddress    String?
   device       String?
   createdAt    DateTime @default(now())
