@@ -1,4 +1,8 @@
+import React from 'react';
 import { describe, it, expect } from 'vitest';
+import { renderToString } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+import App from '../App';
 import { calculateBalance, generateTransactionId, getPeriodSummary } from './finance';
 
 describe('financial helpers', () => {
@@ -13,5 +17,13 @@ describe('financial helpers', () => {
 
   it('summarises periods with income, expenditure and balance', () => {
     expect(getPeriodSummary(1000, 300)).toEqual({ income: 1000, expenditure: 300, balance: 700, transactionCount: 2 });
+  });
+
+  it('renders a landing page at the root route', () => {
+    const html = renderToString(
+      React.createElement(MemoryRouter, { initialEntries: ['/'] }, React.createElement(App)),
+    );
+
+    expect(html).toContain('Smart school finance management');
   });
 });
