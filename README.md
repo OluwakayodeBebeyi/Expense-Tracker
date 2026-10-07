@@ -32,7 +32,7 @@ A professional financial management application for schools, built with React + 
    ```bash
    npm install
    ```
-2. Copy environment variables:
+2. Copy environment variables (Linux/macOS: `cp .env.example .env`; Windows PowerShell: `Copy-Item .env.example .env`):
    ```bash
    cp .env.example .env
    ```
