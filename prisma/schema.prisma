@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions Json
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model User {
+  id              String       @id @default(uuid())
+  name            String
+  email           String       @unique
+  passwordHash    String
+  roleId          String
+  role            Role          @relation(fields: [roleId], references: [id])
+  status          String        @default("active")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  auditLogs       AuditLog[]
+  createdTxns     Transaction[] @relation("CreatedBy")
+  approvedTxns    Transaction[] @relation("ApprovedBy")
+  rejectedTxns    Transaction[] @relation("RejectedBy")
+  voidedTxns      Transaction[] @relation("VoidedBy")
+  reportedBy      Report[]      @relation("GeneratedBy")
+}
+
+model School {
+  id               String   @id @default(uuid())
+  name             String
+  logo             String?
+  address          String?
+  phone            String?
+  email            String?
+  website          String?
+  academicSession  String?
+  financialYear    String?
+  currency         String   @default("₦")
+  reportFooter     String?
+  authorizedSigner String?
+  signatoryTitle   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Account {
+  id            String        @id @default(uuid())
+  name          String
+  type          String
+  bankName      String?
+  accountNumber String?
+  openingBalance Decimal       @default(0)
+  currentBalance Decimal       @default(0)
+  status        String        @default("active")
+  notes         String?
+  transactions  Transaction[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Category {
+  id           String        @id @default(uuid())
+  name         String
+  type         String
+  status       String        @default("active")
+  description  String?
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model PaymentMethod {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  status      String        @default("active")
+  transactions Transaction[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Transaction {
+  id              String        @id @default(uuid())
+  transactionId   String        @unique
+  type            String
+  date            DateTime
+  categoryId      String
+  category        Category      @relation(fields: [categoryId], references: [id])
+  description     String
+  amount          Decimal
+  paymentMethodId String
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  accountId       String
+  account         Account       @relation(fields: [accountId], references: [id])
+  sourceOrVendor  String?
+  referenceNumber String?
+  academicSession String?
+  financialYear   String?
+  notes           String?
+  status          String        @default("approved")
+  approvalStatus  String?       @default("approved")
+  createdById     String
+  createdBy       User          @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedById    String?
+  approvedBy      User?         @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  approvalNotes   String?
+  rejectedById    String?
+  rejectedBy      User?         @relation("RejectedBy", fields: [rejectedById], references: [id])
+  rejectionReason String?
+  voidReason      String?
+  voidedById      String?
+  voidedBy        User?         @relation("VoidedBy", fields: [voidedById], references: [id])
+  voidedAt        DateTime?
+  attachmentId    String?
+  attachment      Attachment?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Attachment {
+  id          String      @id @default(uuid())
+  fileName    String
+  originalName String
+  mimeType    String
+  size        Int
+  path        String
+  transactionId String?    @unique
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+  createdAt   DateTime    @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  action       String
+  entity       String?
+  entityId     String?
+  previousValue Json?
+  newValue     Json?
+  ipAddress    String?
+  device       String?
+  createdAt    DateTime @default(now())
+}
+
+model Report {
+  id              String   @id @default(uuid())
+  reportId        String   @unique
+  reportType      String
+  reportingPeriod String
+  filters         String?
+  generatedById   String?
+  generatedBy     User?    @relation("GeneratedBy", fields: [generatedById], references: [id])
+  createdAt       DateTime @default(now())
+}
