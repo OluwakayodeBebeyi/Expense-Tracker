@@ -21,6 +21,22 @@ export function getPeriodSummary(income: number, expenditure: number, transactio
   };
 }
 
+export function buildEmptyFinancialSummary() {
+  return {
+    totalIncome: 0,
+    totalExpenditure: 0,
+    currentBalance: 0,
+    transactionCount: 0,
+    todayIncome: 0,
+    todayExpenditure: 0,
+    currentMonthIncome: 0,
+    currentMonthExpenditure: 0,
+    currentMonthBalance: 0,
+    financialYearIncome: 0,
+    financialYearExpenditure: 0,
+  };
+}
+
 export function formatCurrency(value: number, currency = '₦'): string {
   return `${currency}${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }

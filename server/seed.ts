@@ -1,8 +1,17 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import { prisma } from './db.js';
+import { getPrisma } from './db.js';
 
 async function main() {
+  const prisma = getPrisma();
+  const email = (process.env.INITIAL_ADMIN_EMAIL ?? 'admin@school.com').trim().toLowerCase();
+  const name = process.env.INITIAL_ADMIN_NAME?.trim() || 'School Administrator';
+  const password = process.env.INITIAL_ADMIN_PASSWORD ?? '';
+
+  if (Buffer.byteLength(password, 'utf8') < 12 || Buffer.byteLength(password, 'utf8') > 72) {
+    throw new Error('Set INITIAL_ADMIN_PASSWORD to a unique password between 12 and 72 UTF-8 bytes before seeding.');
+  }
+
   const defaultRole = await prisma.role.upsert({
     where: { name: 'Administrator' },
     update: {},
@@ -12,14 +21,14 @@ async function main() {
     },
   });
 
-  const passwordHash = await bcrypt.hash('Admin@123', 10);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   await prisma.user.upsert({
-    where: { email: 'admin@school.com' },
+    where: { email },
     update: {},
     create: {
-      name: 'School Administrator',
-      email: 'admin@school.com',
+      name,
+      email,
       passwordHash,
       roleId: defaultRole.id,
     },
@@ -44,100 +53,7 @@ async function main() {
     },
   });
 
-  const incomeCategory = await prisma.category.upsert({
-    where: { id: 'income-default' },
-    update: {},
-    create: {
-      id: 'income-default',
-      name: 'School Fees',
-      type: 'INCOME',
-      description: 'Default income category',
-      status: 'active',
-    },
-  });
-
-  const expenseCategory = await prisma.category.upsert({
-    where: { id: 'expense-default' },
-    update: {},
-    create: {
-      id: 'expense-default',
-      name: 'Salaries',
-      type: 'EXPENDITURE',
-      description: 'Default expenditure category',
-      status: 'active',
-    },
-  });
-
-  const paymentMethod = await prisma.paymentMethod.upsert({
-    where: { name: 'Bank Transfer' },
-    update: {},
-    create: { name: 'Bank Transfer', status: 'active' },
-  });
-
-  const account = await prisma.account.upsert({
-    where: { id: 'main-bank' },
-    update: {},
-    create: {
-      id: 'main-bank',
-      name: 'Main School Account',
-      type: 'bank',
-      bankName: 'First Bank',
-      accountNumber: '1234567890',
-      openingBalance: 2500000,
-      currentBalance: 2500000,
-      status: 'active',
-    },
-  });
-
-  const now = new Date();
-
-  await prisma.transaction.upsert({
-    where: { transactionId: 'INC-2026-000001' },
-    update: {},
-    create: {
-      transactionId: 'INC-2026-000001',
-      type: 'INCOME',
-      date: now,
-      categoryId: incomeCategory.id,
-      description: 'School fees collection',
-      amount: 250000,
-      paymentMethodId: paymentMethod.id,
-      accountId: account.id,
-      sourceOrVendor: 'Parents',
-      referenceNumber: 'REF-001',
-      academicSession: '2025/2026',
-      financialYear: '2026',
-      status: 'approved',
-      approvalStatus: 'approved',
-      createdById: (await prisma.user.findUnique({ where: { email: 'admin@school.com' } }))!.id,
-      approvedById: (await prisma.user.findUnique({ where: { email: 'admin@school.com' } }))!.id,
-    },
-  });
-
-  await prisma.transaction.upsert({
-    where: { transactionId: 'EXP-2026-000001' },
-    update: {},
-    create: {
-      transactionId: 'EXP-2026-000001',
-      type: 'EXPENDITURE',
-      date: now,
-      categoryId: expenseCategory.id,
-      description: 'Teacher salary payment',
-      amount: 180000,
-      paymentMethodId: paymentMethod.id,
-      accountId: account.id,
-      sourceOrVendor: 'Staff Payroll',
-      referenceNumber: 'EXP-REF-001',
-      academicSession: '2025/2026',
-      financialYear: '2026',
-      status: 'approved',
-      approvalStatus: 'approved',
-      createdById: (await prisma.user.findUnique({ where: { email: 'admin@school.com' } }))!.id,
-      approvedById: (await prisma.user.findUnique({ where: { email: 'admin@school.com' } }))!.id,
-    },
-  });
-
-  console.log('Seed data created successfully.');
+  console.log(`Empty school system initialized. Administrator account is ready for ${email}.`);
 }
 
 main().catch((error) => {

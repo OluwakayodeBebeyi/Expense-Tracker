@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
-import { calculateBalance, generateTransactionId, getPeriodSummary } from './finance';
+import { buildEmptyFinancialSummary, calculateBalance, generateTransactionId, getPeriodSummary } from './finance';
 
 describe('financial helpers', () => {
   it('calculates balance correctly', () => {
@@ -25,5 +25,28 @@ describe('financial helpers', () => {
     );
 
     expect(html).toContain('Smart school finance management');
+  });
+
+  it('starts with an empty financial summary and dashboard', () => {
+    expect(buildEmptyFinancialSummary()).toEqual({
+      totalIncome: 0,
+      totalExpenditure: 0,
+      currentBalance: 0,
+      transactionCount: 0,
+      todayIncome: 0,
+      todayExpenditure: 0,
+      currentMonthIncome: 0,
+      currentMonthExpenditure: 0,
+      currentMonthBalance: 0,
+      financialYearIncome: 0,
+      financialYearExpenditure: 0,
+    });
+
+    const html = renderToString(
+      React.createElement(MemoryRouter, { initialEntries: ['/dashboard'] }, React.createElement(App)),
+    );
+
+    expect(html).toContain('Checking your session');
+    expect(html).not.toContain('₦1,250,000.00');
   });
 });

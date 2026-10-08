@@ -1,19 +1,29 @@
-import { ArrowRight, BarChart3, Banknote, BadgeCheck, CreditCard, FileText, LogIn, Settings, ShieldCheck, TrendingUp, Users } from 'lucide-react';
-import { Link, Route, Routes } from 'react-router-dom';
-import { formatCurrency } from './lib/finance';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { ArrowRight, BarChart3, Banknote, BadgeCheck, CreditCard, FileText, LogIn, LogOut, Settings, ShieldCheck, TrendingUp, Users } from 'lucide-react';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { buildEmptyFinancialSummary, formatCurrency } from './lib/finance';
+
+interface SessionUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+const emptySummary = buildEmptyFinancialSummary();
 
 const summary = [
-  { label: 'Total Income', value: formatCurrency(1250000), icon: TrendingUp, tone: 'blue' },
-  { label: 'Total Expenditure', value: formatCurrency(820000), icon: CreditCard, tone: 'slate' },
-  { label: 'Current Balance', value: formatCurrency(430000), icon: Banknote, tone: 'emerald' },
-  { label: 'Transactions', value: '126', icon: BarChart3, tone: 'amber' },
+  { label: 'Total Income', value: formatCurrency(emptySummary.totalIncome), icon: TrendingUp, tone: 'blue' },
+  { label: 'Total Expenditure', value: formatCurrency(emptySummary.totalExpenditure), icon: CreditCard, tone: 'slate' },
+  { label: 'Current Balance', value: formatCurrency(emptySummary.currentBalance), icon: Banknote, tone: 'emerald' },
+  { label: 'Transactions', value: String(emptySummary.transactionCount), icon: BarChart3, tone: 'amber' },
 ];
 
 const quickStats = [
-  { title: 'Today Income', value: formatCurrency(68000) },
-  { title: 'Today Expenditure', value: formatCurrency(35000) },
-  { title: 'Current Month Balance', value: formatCurrency(540000) },
-  { title: 'Financial Year Income', value: formatCurrency(4300000) },
+  { title: 'Today Income', value: formatCurrency(emptySummary.todayIncome) },
+  { title: 'Today Expenditure', value: formatCurrency(emptySummary.todayExpenditure) },
+  { title: 'Current Month Balance', value: formatCurrency(emptySummary.currentMonthBalance) },
+  { title: 'Financial Year Income', value: formatCurrency(emptySummary.financialYearIncome) },
 ];
 
 const menu = [
@@ -31,6 +41,140 @@ const landingFeatures = [
   { title: 'Secure school finance', description: 'Keep all approvals, records and audit trails organized.', icon: ShieldCheck },
   { title: 'Easy reporting', description: 'Generate clean summaries for school leadership and parents.', icon: FileText },
 ];
+
+function ProtectedRoute({ user, isLoading, children }: { user: SessionUser | null; isLoading: boolean; children: ReactNode }) {
+  const location = useLocation();
+
+  if (isLoading) {
+    return <main className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-600">Checking your session…</main>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
+function LoginPage({ onAuthenticated }: { onAuthenticated: (user: SessionUser) => void }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email, password }),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.message ?? 'Sign in failed. Check your details and try again.');
+      }
+
+      onAuthenticated(result.user as SessionUser);
+      const returnTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      navigate(returnTo ?? '/dashboard', { replace: true });
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to sign in right now.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="grid min-h-screen bg-slate-50 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.85fr)]">
+      <section className="relative hidden overflow-hidden bg-blue-800 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute inset-0 opacity-15" aria-hidden="true" style={{ backgroundImage: 'linear-gradient(135deg, transparent 0 48%, rgba(255,255,255,.18) 48% 49%, transparent 49%), linear-gradient(45deg, transparent 0 48%, rgba(255,255,255,.12) 48% 49%, transparent 49%)', backgroundSize: '64px 64px' }} />
+        <Link to="/" className="relative z-10 flex w-fit items-center gap-3 text-white">
+          <span className="grid h-11 w-11 place-items-center rounded-lg bg-white font-bold text-blue-800">SF</span>
+          <span>
+            <span className="block text-xs uppercase tracking-[0.18em] text-blue-100">School</span>
+            <span className="block text-lg font-semibold">Finance Portal</span>
+          </span>
+        </Link>
+        <div className="relative z-10 max-w-xl pb-10">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-blue-200">School financial management</p>
+          <h1 className="text-4xl font-bold leading-tight">Clear records. Confident decisions.</h1>
+          <p className="mt-5 max-w-md text-base leading-7 text-blue-100">Sign in to access your school’s financial records, reporting and account controls.</p>
+          <div className="mt-8 h-1 w-16 rounded-full bg-red-400" />
+        </div>
+        <p className="relative z-10 text-sm text-blue-200">Secure access for authorized school personnel</p>
+      </section>
+
+      <section className="flex items-center justify-center px-6 py-12 sm:px-10">
+        <div className="w-full max-w-md">
+          <Link to="/" className="mb-12 inline-flex items-center gap-3 text-slate-900 lg:hidden">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-blue-700 font-bold text-white">SF</span>
+            <span className="font-semibold">School Finance Portal</span>
+          </Link>
+          <div className="mb-8">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-700">Administrator access</p>
+            <h2 className="mt-2 text-3xl font-bold text-slate-950">Welcome back</h2>
+            <p className="mt-2 text-sm text-slate-600">Sign in with your school account to continue.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-slate-800">Email address</label>
+              <input
+                id="login-email"
+                name="email"
+                type="email"
+                autoComplete="username"
+                required
+                maxLength={254}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                placeholder="name@school.edu"
+              />
+            </div>
+            <div>
+              <label htmlFor="login-password" className="mb-2 block text-sm font-medium text-slate-800">Password</label>
+              <input
+                id="login-password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                maxLength={256}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
+                placeholder="Enter your password"
+              />
+            </div>
+            {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <LogIn size={17} />
+              {isSubmitting ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+
+          <p className="mt-6 text-xs leading-5 text-slate-500">Access is limited to active accounts authorized by your school administrator.</p>
+          <div className="mt-10 border-t border-slate-200 pt-5">
+            <Link to="/" className="text-sm font-medium text-blue-700 hover:text-blue-900">Back to home</Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
 
 function LandingPage() {
   return (
@@ -85,11 +229,11 @@ function LandingPage() {
 
             <div className="mt-10 flex flex-wrap gap-8 text-sm text-slate-300">
               <div>
-                <p className="text-2xl font-bold text-white">₦4.3M</p>
+                <p className="text-2xl font-bold text-white">₦0.00</p>
                 <p>Annual income</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-white">126</p>
+                <p className="text-2xl font-bold text-white">0</p>
                 <p>Transactions</p>
               </div>
               <div>
@@ -103,34 +247,32 @@ function LandingPage() {
             <div className="rounded-2xl bg-slate-950 p-5">
               <div className="mb-5 flex items-center justify-between">
                 <p className="text-sm font-medium text-slate-300">School financial overview</p>
-                <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-300">Operating</span>
+                <span className="rounded-full bg-rose-500/15 px-2 py-1 text-xs font-medium text-rose-300">No records</span>
               </div>
 
               <div className="space-y-4">
                 <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
                   <p className="text-sm text-slate-400">Current balance</p>
-                  <p className="mt-2 text-3xl font-bold text-white">{formatCurrency(430000)}</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{formatCurrency(emptySummary.currentBalance)}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
                     <p className="text-sm text-slate-400">Income</p>
-                    <p className="mt-2 text-xl font-semibold text-blue-300">{formatCurrency(1250000)}</p>
+                    <p className="mt-2 text-xl font-semibold text-blue-300">{formatCurrency(emptySummary.totalIncome)}</p>
                   </div>
                   <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
                     <p className="text-sm text-slate-400">Expenditure</p>
-                    <p className="mt-2 text-xl font-semibold text-rose-300">{formatCurrency(820000)}</p>
+                    <p className="mt-2 text-xl font-semibold text-rose-300">{formatCurrency(emptySummary.totalExpenditure)}</p>
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
                   <div className="mb-3 flex items-center justify-between text-sm">
                     <span className="text-slate-400">Budget health</span>
-                    <span className="font-semibold text-emerald-300">84%</span>
+                    <span className="font-semibold text-slate-400">No activity</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-                    <div className="h-full w-[84%] rounded-full bg-gradient-to-r from-blue-500 to-emerald-400" />
-                  </div>
+                  <p className="text-sm text-slate-400">Financial summaries will appear after transactions are recorded.</p>
                 </div>
               </div>
             </div>
@@ -181,7 +323,7 @@ function LandingPage() {
   );
 }
 
-function DashboardPage() {
+function DashboardPage({ user, onLogout }: { user: SessionUser; onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800">
       <aside className="fixed inset-y-0 left-0 w-72 border-r border-slate-200 bg-white p-5">
@@ -207,7 +349,7 @@ function DashboardPage() {
 
         <div className="mt-10 rounded-xl border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">System Status</p>
-          <p className="mt-2 text-sm text-slate-700">All financial records are synchronized and ready for reporting.</p>
+          <p className="mt-2 text-sm text-slate-700">No financial records yet. Create the first transaction to begin tracking school finances.</p>
         </div>
       </aside>
 
@@ -223,8 +365,11 @@ function DashboardPage() {
             </div>
             <div>
               <p className="text-xs text-slate-400">Logged in as</p>
-              <p className="font-semibold text-slate-800">Administrator</p>
+              <p className="font-semibold text-slate-800">{user.name} · {user.role}</p>
             </div>
+            <button onClick={onLogout} type="button" title="Sign out" aria-label="Sign out" className="ml-2 rounded-lg p-2 text-slate-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-blue-600">
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
 
@@ -256,35 +401,16 @@ function DashboardPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
             <h3 className="text-lg font-semibold text-slate-900">Income vs Expenditure</h3>
             <div className="mt-6 h-64 rounded-xl bg-slate-50 p-4">
-              <div className="flex h-full items-end gap-3">
-                {[50, 65, 75, 48, 92, 76, 88, 70, 95, 80, 102, 120].map((height, index) => (
-                  <div key={index} className="flex-1 rounded-t-xl bg-blue-500/80" style={{ height: `${height}%` }} />
-                ))}
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                No monthly transactions to chart yet.
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
             <h3 className="text-lg font-semibold text-slate-900">Expenditure by Category</h3>
-            <div className="mt-6 space-y-4">
-              {[
-                ['Salaries', 48],
-                ['Utilities', 18],
-                ['School Supplies', 12],
-                ['Maintenance', 9],
-                ['ICT', 8],
-                ['Security', 5],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <div className="mb-1 flex items-center justify-between text-sm text-slate-600">
-                    <span>{label}</span>
-                    <span>{value}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100">
-                    <div className="h-2 rounded-full bg-blue-500" style={{ width: `${value}%` }} />
-                  </div>
-                </div>
-              ))}
+            <div className="mt-6 flex min-h-48 items-center justify-center text-sm text-slate-500">
+              No expenditure categories to display yet.
             </div>
           </div>
         </section>
@@ -294,10 +420,42 @@ function DashboardPage() {
 }
 
 export default function App() {
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (isMounted) setUser(result?.user ?? null);
+      })
+      .catch(() => {
+        if (isMounted) setUser(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingSession(false);
+      });
+
+    return () => { isMounted = false; };
+  }, []);
+
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } finally {
+      setUser(null);
+      navigate('/login', { replace: true });
+    }
+  }
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/login" element={<LoginPage onAuthenticated={setUser} />} />
+      <Route path="/dashboard" element={<ProtectedRoute user={user} isLoading={isLoadingSession}><DashboardPage user={user!} onLogout={handleLogout} /></ProtectedRoute>} />
     </Routes>
   );
 }
