@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { getPrisma } from './db.js';
+import { SUPER_ADMIN_PERMISSIONS, SUPER_ADMIN_ROLE } from './roles.js';
 
 async function main() {
   const prisma = getPrisma();
@@ -12,12 +13,12 @@ async function main() {
     throw new Error('Set INITIAL_ADMIN_PASSWORD to a unique password between 12 and 72 UTF-8 bytes before seeding.');
   }
 
-  const defaultRole = await prisma.role.upsert({
-    where: { name: 'Administrator' },
-    update: {},
+  const superAdminRole = await prisma.role.upsert({
+    where: { name: SUPER_ADMIN_ROLE },
+    update: { permissions: JSON.stringify(SUPER_ADMIN_PERMISSIONS) },
     create: {
-      name: 'Administrator',
-      permissions: JSON.stringify(['manageUsers', 'manageSettings', 'manageTransactions', 'generateReports']),
+      name: SUPER_ADMIN_ROLE,
+      permissions: JSON.stringify(SUPER_ADMIN_PERMISSIONS),
     },
   });
 
@@ -25,12 +26,12 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email },
-    update: {},
+    update: { roleId: superAdminRole.id },
     create: {
       name,
       email,
       passwordHash,
-      roleId: defaultRole.id,
+      roleId: superAdminRole.id,
     },
   });
 
@@ -53,7 +54,7 @@ async function main() {
     },
   });
 
-  console.log(`Empty school system initialized. Administrator account is ready for ${email}.`);
+  console.log(`Empty school system initialized. Super Admin account is ready for ${email}.`);
 }
 
 main().catch((error) => {

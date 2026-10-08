@@ -39,7 +39,7 @@ A professional financial management application for schools, built with React + 
    cp .env.example .env
    ```
 3. Configure PostgreSQL and set `DATABASE_URL`, `JWT_SECRET`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_NAME`, and `INITIAL_ADMIN_PASSWORD` in `.env`. Use a unique initial password between 12 and 72 UTF-8 bytes.
-4. Generate Prisma client, create the database schema, and seed the initial administrator and school settings:
+4. Generate Prisma client, create the database schema, and seed the initial Super Admin and school settings:
    ```bash
    npx prisma generate
    npx prisma db push
@@ -57,7 +57,7 @@ The frontend runs at http://localhost:5173 and the API runs at http://localhost:
 - Passwords are hashed with bcrypt before storage.
 - Successful login sets an eight-hour signed session cookie using `HttpOnly`, `SameSite=Lax`, and `Secure` in production.
 - Protected API requests verify the session and check the user's current active status in PostgreSQL.
-- Public account registration and hardcoded default passwords are not enabled. The initial administrator is created through the seed script.
+- Public account registration and hardcoded default passwords are not enabled. The configured initial account is assigned the Super Admin role by the seed script.
 
 ## Production build
 
