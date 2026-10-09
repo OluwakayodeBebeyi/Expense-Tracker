@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import jwt from 'jsonwebtoken';
 import { createSessionToken, getSessionTokenFromCookieHeader, verifySessionToken } from './auth.js';
 
 const secret = 'test-only-signing-secret-with-at-least-32-characters';
@@ -10,6 +11,7 @@ describe('authentication sessions', () => {
     expect(verifySessionToken(token, secret)).toEqual({
       userId: 'user-123',
       role: 'Administrator',
+      sessionId: expect.any(String),
     });
   });
 
@@ -21,6 +23,16 @@ describe('authentication sessions', () => {
 
   it('rejects malformed tokens', () => {
     expect(verifySessionToken('not-a-token', secret)).toBeNull();
+  });
+
+  it('rejects tokens signed with a different algorithm', () => {
+    const token = jwt.sign({ role: 'Administrator' }, secret, {
+      subject: 'user-123',
+      issuer: 'school-financial-management',
+      algorithm: 'HS512',
+    });
+
+    expect(verifySessionToken(token, secret)).toBeNull();
   });
 
   it('rejects expired sessions', () => {

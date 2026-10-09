@@ -8,12 +8,19 @@ datasource db {
 }
 
 model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  permissions String
+  id          String           @id @default(uuid())
+  name        String           @unique
+  permissions String           @default("[]")
+  description String           @default("")
+  accessLevel Int              @default(10)
+  isSystem    Boolean          @default(false)
+  status      String           @default("active")
   users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  grants      RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status, accessLevel])
 }
 
 model User {
@@ -24,14 +31,97 @@ model User {
   roleId          String
   role            Role          @relation(fields: [roleId], references: [id])
   status          String        @default("active")
+  isSuperAdmin    Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   auditLogs       AuditLog[]
+  sessions        Session[]
+  permissionOverrides UserPermission[]
+  passwordResets  PasswordReset[]
   createdTxns     Transaction[] @relation("CreatedBy")
   approvedTxns    Transaction[] @relation("ApprovedBy")
   rejectedTxns    Transaction[] @relation("RejectedBy")
   voidedTxns      Transaction[] @relation("VoidedBy")
   reportedBy      Report[]      @relation("GeneratedBy")
+
+  @@index([roleId, status])
+  @@index([status, createdAt])
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  key         String           @unique
+  module      String
+  name        String
+  description String
+  sensitive   Boolean          @default(false)
+  grants      RolePermission[]
+  overrides   UserPermission[]
+  createdAt   DateTime         @default(now())
+
+  @@index([module, key])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@index([permissionId, roleId])
+}
+
+model UserPermission {
+  userId       String
+  permissionId String
+  granted      Boolean
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([userId, permissionId])
+  @@index([permissionId, userId])
+}
+
+model Session {
+  id        String    @id @default(uuid())
+  tokenId   String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  lastSeenAt DateTime @default(now())
+  ipAddress String?
+  device    String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model LoginThrottle {
+  keyHash         String   @id
+  windowStartedAt DateTime
+  attempts        Int      @default(0)
+  blockedUntil    DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([blockedUntil])
+  @@index([updatedAt])
 }
 
 model School {
@@ -149,7 +239,12 @@ model AuditLog {
   newValue     String?
   ipAddress    String?
   device       String?
+  outcome      String   @default("SUCCESS")
   createdAt    DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }
 
 model Report {

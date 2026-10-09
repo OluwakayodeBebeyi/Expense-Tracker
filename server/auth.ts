@@ -1,4 +1,5 @@
 import jwt, { type JwtPayload, type SignOptions } from 'jsonwebtoken';
+import { randomUUID } from 'node:crypto';
 
 export const SESSION_COOKIE_NAME = 'school_session';
 export const SESSION_DURATION_SECONDS = 8 * 60 * 60;
@@ -7,6 +8,7 @@ const SESSION_ISSUER = 'school-financial-management';
 export interface SessionClaims {
   userId: string;
   role: string;
+  sessionId: string;
 }
 
 export function createSessionToken(
@@ -14,15 +16,17 @@ export function createSessionToken(
   role: string,
   secret: string,
   expiresIn: SignOptions['expiresIn'] = SESSION_DURATION_SECONDS,
+  sessionId: string = randomUUID(),
 ): string {
   if (secret.length < 32) {
     throw new Error('JWT_SECRET must contain at least 32 characters.');
   }
 
-  return jwt.sign({ role }, secret, {
+  return jwt.sign({ role, sid: sessionId }, secret, {
     subject: userId,
     issuer: SESSION_ISSUER,
     expiresIn,
+    algorithm: 'HS256',
   });
 }
 
@@ -30,10 +34,10 @@ export function verifySessionToken(token: string, secret: string): SessionClaims
   if (secret.length < 32) return null;
 
   try {
-    const payload = jwt.verify(token, secret, { issuer: SESSION_ISSUER }) as JwtPayload;
-    if (typeof payload.sub !== 'string' || typeof payload.role !== 'string') return null;
+    const payload = jwt.verify(token, secret, { issuer: SESSION_ISSUER, algorithms: ['HS256'] }) as JwtPayload;
+    if (typeof payload.sub !== 'string' || typeof payload.role !== 'string' || typeof payload.sid !== 'string') return null;
 
-    return { userId: payload.sub, role: payload.role };
+    return { userId: payload.sub, role: payload.role, sessionId: payload.sid };
   } catch {
     return null;
   }
